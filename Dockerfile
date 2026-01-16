@@ -23,6 +23,14 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
+# Allow Dokploy build args to be used during `next build`
+ARG DB_FILE_NAME
+ARG BETTER_AUTH_SECRET
+ARG NEXT_PUBLIC_AUTH_URL
+ENV DB_FILE_NAME=$DB_FILE_NAME
+ENV BETTER_AUTH_SECRET=$BETTER_AUTH_SECRET
+ENV NEXT_PUBLIC_AUTH_URL=$NEXT_PUBLIC_AUTH_URL
+
 # Run build
 RUN npm run build
 
