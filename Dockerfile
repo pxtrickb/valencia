@@ -46,7 +46,8 @@ COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/package.json ./package.json
 
 # Install drizzle-kit and required dependencies for database migrations
-RUN npm install --omit=dev drizzle-kit tsx better-sqlite3 drizzle-orm
+# Note: @libsql/client is needed for the database connection, and dotenv for config
+RUN npm install --omit=dev drizzle-kit tsx better-sqlite3 drizzle-orm @libsql/client dotenv
 
 # Copy database schema and config files needed for migrations
 COPY --from=builder /app/drizzle.config.ts ./drizzle.config.ts
@@ -56,16 +57,20 @@ COPY --from=builder /app/src/db/schema.ts ./src/db/schema.ts
 # Copy entrypoint script
 COPY --from=builder /app/docker-entrypoint.sh ./docker-entrypoint.sh
 
-# Copy usercontent directory structure (empty, will be mounted as volume)
-RUN mkdir -p usercontent/images
-# Create data directory for database
-RUN mkdir -p data
+# Create persistent directories for data and user content
+# These will be mounted as volumes in docker-compose.yml
+RUN mkdir -p /app/data /app/usercontent/images
 
 # Make entrypoint script executable
 RUN chmod +x ./docker-entrypoint.sh
 
-# Set correct permissions (must be done before switching users)
+# Set correct permissions for the entire app directory
+# This ensures nextjs user can read/write to all directories
 RUN chown -R nextjs:nodejs /app
+
+# Declare volumes for persistence (data directory for database, usercontent for uploaded files)
+# Note: These are mounted from docker-compose.yml but declaring them documents intent
+VOLUME ["/app/data", "/app/usercontent"]
 
 USER nextjs
 
