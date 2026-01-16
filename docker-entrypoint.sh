@@ -30,16 +30,23 @@ if [ "${DB_PATH#file:}" != "$DB_PATH" ]; then
 fi
 
 # Convert relative paths to absolute
+# IMPORTANT: In Docker, we should always use /app/data/local.db as per docker-compose.yml
+# If the path is relative or wrong, force it to the correct location
 case "$DB_PATH" in
   /*) 
-    # Already absolute
-    DB_ACTUAL_PATH="$DB_PATH"
+    # Already absolute - but check if it's the wrong location
+    if [ "$DB_PATH" != "/app/data/local.db" ]; then
+      echo "WARNING: DB_FILE_NAME path ($DB_PATH) doesn't match expected location (/app/data/local.db)"
+      echo "Using expected location: /app/data/local.db"
+      DB_ACTUAL_PATH="/app/data/local.db"
+    else
+      DB_ACTUAL_PATH="$DB_PATH"
+    fi
     ;;
   *)
-    # Relative path - make it absolute based on /app
-    DB_ACTUAL_PATH="/app/$DB_PATH"
-    # Remove any .// or ./ prefixes
-    DB_ACTUAL_PATH=$(echo "$DB_ACTUAL_PATH" | sed 's|/\./|/|g' | sed 's|\./||g')
+    # Relative path - use the expected Docker location
+    echo "Relative path detected, using Docker volume location: /app/data/local.db"
+    DB_ACTUAL_PATH="/app/data/local.db"
     ;;
 esac
 
@@ -50,17 +57,47 @@ echo "Database directory: $(dirname "$DB_ACTUAL_PATH")"
 DB_DIR=$(dirname "$DB_ACTUAL_PATH")
 mkdir -p "$DB_DIR"
 
-# Check if drizzle-kit is available
-if [ ! -f "./node_modules/.bin/drizzle-kit" ]; then
-  echo "ERROR: drizzle-kit not found in node_modules/.bin!"
-  echo "Checking node_modules..."
-  ls -la node_modules/.bin/ 2>&1 | head -20 || echo "node_modules/.bin does not exist"
-  echo "Checking for drizzle-kit..."
-  find node_modules -name "drizzle-kit" -type f 2>&1 | head -5 || echo "drizzle-kit not found"
-  exit 1
+# Check if drizzle-kit is available (try multiple locations)
+DRIZZLE_KIT_PATH=""
+DRIZZLE_KIT_CMD=""
+
+# First check if it's available as a command (global or in PATH)
+if command -v drizzle-kit >/dev/null 2>&1; then
+  DRIZZLE_KIT_PATH=$(command -v drizzle-kit)
+  DRIZZLE_KIT_CMD="drizzle-kit"
+  echo "✓ drizzle-kit found in PATH: $DRIZZLE_KIT_PATH"
+elif [ -f "./node_modules/.bin/drizzle-kit" ]; then
+  DRIZZLE_KIT_PATH="./node_modules/.bin/drizzle-kit"
+  DRIZZLE_KIT_CMD="./node_modules/.bin/drizzle-kit"
+  echo "✓ drizzle-kit found in local node_modules/.bin"
+else
+  # Try to find it in node_modules (might be a JS file)
+  DRIZZLE_KIT_PATH=$(find node_modules -name "drizzle-kit" -type f -executable 2>/dev/null | head -1)
+  if [ -n "$DRIZZLE_KIT_PATH" ]; then
+    DRIZZLE_KIT_CMD="$DRIZZLE_KIT_PATH"
+    echo "✓ drizzle-kit found at: $DRIZZLE_KIT_PATH"
+  else
+    # Try to find the JS file
+    DRIZZLE_KIT_PATH=$(find node_modules -path "*/drizzle-kit/dist/cli.js" -type f 2>/dev/null | head -1)
+    if [ -n "$DRIZZLE_KIT_PATH" ]; then
+      DRIZZLE_KIT_CMD="node $DRIZZLE_KIT_PATH"
+      echo "✓ drizzle-kit found as JS file: $DRIZZLE_KIT_PATH"
+    fi
+  fi
 fi
 
-echo "✓ drizzle-kit found at: ./node_modules/.bin/drizzle-kit"
+if [ -z "$DRIZZLE_KIT_CMD" ]; then
+  echo "ERROR: drizzle-kit not found!"
+  echo "Checking node_modules/.bin..."
+  ls -la node_modules/.bin/ 2>&1 | head -20 || echo "node_modules/.bin does not exist"
+  echo "Checking for drizzle-kit in node_modules..."
+  find node_modules -name "*drizzle-kit*" -type f 2>&1 | head -10 || echo "drizzle-kit not found"
+  echo "Checking npm bin..."
+  npm bin 2>&1 || true
+  echo "Checking global npm packages..."
+  npm list -g drizzle-kit 2>&1 | head -5 || true
+  exit 1
+fi
 
 # Push database schema (idempotent - safe to run on every startup)
 echo "=== Running database schema migration ==="
@@ -84,10 +121,25 @@ echo "✓ schema.ts found"
 # For drizzle-kit with SQLite, we need to ensure it's using the absolute path without file: prefix
 export DB_FILE_NAME="$DB_ACTUAL_PATH"
 
-if npx drizzle-kit push; then
+# Ensure PATH includes node_modules/.bin for npx to find drizzle-kit
+export PATH="/app/node_modules/.bin:$PATH"
+
+echo "Using DB_FILE_NAME: $DB_FILE_NAME for drizzle-kit push"
+
+# Try to run drizzle-kit push
+# First try npx, then fall back to direct command
+if npx --yes drizzle-kit push 2>&1; then
   echo "✓ Database schema migration completed successfully"
+elif [ -n "$DRIZZLE_KIT_CMD" ]; then
+  echo "npx failed, trying direct command: $DRIZZLE_KIT_CMD"
+  if $DRIZZLE_KIT_CMD push; then
+    echo "✓ Database schema migration completed successfully"
+  else
+    echo "ERROR: Database schema migration failed with exit code $?"
+    exit 1
+  fi
 else
-  echo "ERROR: Database schema migration failed with exit code $?"
+  echo "ERROR: Cannot run drizzle-kit push - no drizzle-kit found"
   exit 1
 fi
 

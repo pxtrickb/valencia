@@ -42,12 +42,18 @@ COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 
-# Copy package.json for npm scripts
+# Copy package.json for npm scripts (needed for drizzle-kit)
 COPY --from=builder /app/package.json ./package.json
 
 # Install drizzle-kit and required dependencies for database migrations
+# Install into the app directory (which includes the standalone's node_modules)
 # Note: @libsql/client is needed for the database connection, and dotenv for config
-RUN npm install --omit=dev drizzle-kit tsx better-sqlite3 drizzle-orm @libsql/client dotenv --legacy-peer-deps
+# Install as root before switching users
+# Install both locally and globally as a fallback
+RUN npm install --omit=dev drizzle-kit tsx better-sqlite3 drizzle-orm @libsql/client dotenv --legacy-peer-deps && \
+    npm install -g drizzle-kit --legacy-peer-deps || true && \
+    echo "drizzle-kit check: $(which drizzle-kit || echo 'not in PATH')" && \
+    echo "local node_modules: $(find node_modules -name drizzle-kit -type f 2>/dev/null | head -1 || echo 'not found locally')"
 
 # Copy database schema and config files needed for migrations
 COPY --from=builder /app/drizzle.config.ts ./drizzle.config.ts
