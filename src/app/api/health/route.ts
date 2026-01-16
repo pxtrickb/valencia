@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
-import { existsSync, access, constants } from "fs/promises";
+import { existsSync } from "fs";
+import { access, constants } from "fs/promises";
 import { join } from "path";
 import db from "@/db";
-import { sql } from "drizzle-orm";
+import { user } from "@/db/schema";
 
 interface HealthStatus {
   status: "healthy" | "degraded" | "unhealthy";
@@ -66,7 +67,17 @@ export async function GET() {
   // Check database connection
   try {
     const dbStartTime = Date.now();
-    await db.execute(sql`SELECT 1`);
+    // Simple health check: try to execute a basic query via libSQL client
+    // Access the underlying client for raw SQL execution
+    const client = (db as any).$client;
+    if (client && typeof client.execute === 'function') {
+      // libSQL client execute method - pass SQL string directly
+      await client.execute('SELECT 1');
+    } else {
+      // Fallback: try to query the user table (should always exist from better-auth)
+      // This is a simple query that will fail if DB is not accessible
+      await db.select().from(user).limit(1);
+    }
     const dbResponseTime = Date.now() - dbStartTime;
     healthStatus.checks.database.responseTime = dbResponseTime;
     healthStatus.checks.database.status = "ok";
