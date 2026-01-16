@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    volumes:
+      # Persistent volume for user-uploaded images
+      - usercontent:/app/usercontent
+      # Persistent volume for SQLite database
+      - db-data:/app/src/db
+    environment:
+      - NODE_ENV=production
+      - DB_FILE_NAME=/app/src/db/local.db
+      # Add other environment variables as needed
+    restart: unless-stopped
+
+volumes:
+  usercontent:
+    driver: local
+  db-data:
+    driver: local
+
