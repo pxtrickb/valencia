@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { z } from "zod";
@@ -51,7 +51,7 @@ const signUpSchema = z
 
 type SignUpValues = z.infer<typeof signUpSchema>;
 
-export default function SignUpPage() {
+function SignUpForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackURL = searchParams.get("callbackURL") ?? "/";
@@ -275,6 +275,38 @@ export default function SignUpPage() {
         </div>
       </CardFooter>
     </Card>
+  );
+}
+
+export default function SignUpPage() {
+  return (
+    <Suspense fallback={
+      <Card className="w-full border-0 bg-background/95 shadow-xl backdrop-blur-md">
+        <CardHeader className="space-y-3 pb-6">
+          <div className="flex items-center justify-center gap-2 mb-2">
+            <span className="flex size-8 items-center justify-center rounded-full bg-gradient-to-br from-orange-500 to-orange-600 text-sm font-bold text-white shadow-sm">
+              V
+            </span>
+            <span className="text-lg font-bold bg-gradient-to-r from-orange-600 to-orange-500 bg-clip-text text-transparent">
+              Valencia
+            </span>
+          </div>
+          <CardTitle className="text-2xl font-bold text-center">
+            Create an account
+          </CardTitle>
+          <CardDescription className="text-center">
+            Join our community to discover and share the best of Valencia.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="size-6 animate-spin text-orange-600" />
+          </div>
+        </CardContent>
+      </Card>
+    }>
+      <SignUpForm />
+    </Suspense>
   );
 }
 

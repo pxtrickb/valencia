@@ -42,7 +42,7 @@ const updateSpotSchema = z.object({
     .max(500, "Description must be less than 500 characters"),
   priceRange: z.enum(["$", "$$", "$$$"]),
   address: z.string().min(1, "Address is required").optional(),
-  hours: z.record(z.string()).optional(),
+  hours: z.record(z.string(), z.string()).optional(),
   phone: z.string().optional(),
   website: z.string().url("Invalid URL").optional().or(z.literal("")),
   fullDescription: z.string().optional(),
@@ -156,7 +156,7 @@ export async function PUT(
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: "Validation error", details: error.errors },
+        { error: "Validation error", details: error.message },
         { status: 400 }
       );
     }

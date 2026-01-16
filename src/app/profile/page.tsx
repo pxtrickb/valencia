@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { z } from "zod";
@@ -88,7 +88,7 @@ type Business = {
 
 type Tab = "reviews" | "bucketlist" | "businesses";
 
-export default function ProfilePage() {
+function ProfilePageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<Tab>("reviews");
@@ -790,6 +790,23 @@ export default function ProfilePage() {
   );
 }
 
+export default function ProfilePage() {
+  return (
+    <Suspense fallback={
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <Loader2 className="size-8 animate-spin text-orange-600 mx-auto mb-4" />
+            <p className="text-muted-foreground">Loading profile...</p>
+          </div>
+        </div>
+      </div>
+    }>
+      <ProfilePageContent />
+    </Suspense>
+  );
+}
+
 // Edit Business Dialog
 const editBusinessSchema = z.object({
   name: z.string().min(1, "Business name is required"),
@@ -1457,7 +1474,7 @@ function EditSpotDialog({
     resolver: zodResolver(editSpotSchema),
     defaultValues: {
       name: spot.name,
-      category: categoryMap[spot.category] || spot.category || "Restaurant",
+      category: categoryMap[spot.category] || (spot.category as any) || "Restaurant",
       location: spot.location,
       description: spotData?.description || "",
       priceRange: spotData?.priceRange || "$$",
@@ -1468,11 +1485,11 @@ function EditSpotDialog({
   useEffect(() => {
     if (open && spotData) {
       form.reset({
-        name: spot.name,
-        category: categoryMap[spot.category] || spot.category || "Restaurant",
+        name: spot.name, 
+        category: categoryMap[spot.category] || (spot.category as any) || "Restaurant",
         location: spot.location,
         description: spotData.description,
-        priceRange: spotData.priceRange,
+        priceRange: spotData.priceRange as "$" | "$$" | "$$$",
       });
       setShowDeleteConfirm(false);
     }

@@ -120,11 +120,13 @@ export async function PUT(
     if (validatedData.banned === true) {
       try {
         await auth.api.banUser({
-          userId: id,
-          banReason: validatedData.banReason || "Banned by admin",
-          banExpiresIn: validatedData.banExpires
-            ? Math.floor((validatedData.banExpires - Date.now()) / 1000)
-            : undefined, // Convert to seconds
+          body: {
+            userId: id,
+            banReason: validatedData.banReason || "Banned by admin",
+            banExpiresIn: validatedData.banExpires
+              ? Math.floor((validatedData.banExpires - Date.now()) / 1000)
+              : undefined, // Convert to seconds
+          },
           headers: await headers(),
         });
       } catch (banError) {
@@ -135,7 +137,9 @@ export async function PUT(
       // Unban user
       try {
         await auth.api.unbanUser({
-          userId: id,
+          body: {
+            userId: id,
+          },
           headers: await headers(),
         });
       } catch (unbanError) {
