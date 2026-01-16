@@ -47,7 +47,7 @@ COPY --from=builder /app/package.json ./package.json
 
 # Install drizzle-kit and required dependencies for database migrations
 # Note: @libsql/client is needed for the database connection, and dotenv for config
-RUN npm install --omit=dev drizzle-kit tsx better-sqlite3 drizzle-orm @libsql/client dotenv
+RUN npm install --omit=dev drizzle-kit tsx better-sqlite3 drizzle-orm @libsql/client dotenv --legacy-peer-deps
 
 # Copy database schema and config files needed for migrations
 COPY --from=builder /app/drizzle.config.ts ./drizzle.config.ts
