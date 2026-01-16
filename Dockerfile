@@ -44,7 +44,7 @@ COPY --from=builder /app/.next/static ./.next/static
 
 # Copy package.json for npm scripts (needed for drizzle-kit)
 COPY --from=builder /app/package.json ./package.json
-COPY --from=builder /app/package-lock.json* ./package-lock.json* 2>/dev/null || true
+# Note: package-lock.json is optional - npm will work without it
 
 # Install drizzle-kit and required dependencies for database migrations
 # CRITICAL: Install locally (not just globally) so drizzle-kit can load config files that need these modules
