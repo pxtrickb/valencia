@@ -63,18 +63,20 @@ RUN mkdir -p ./usercontent/images ./src/db && \
     chown -R nextjs:nodejs ./usercontent ./src/db
 
 # Create entrypoint script to initialize database if needed
-RUN echo '#!/bin/sh' > /entrypoint.sh && \
-    echo 'set -e' >> /entrypoint.sh && \
-    echo 'DB_PATH="${DB_FILE_NAME:-./src/db/local.db}"' >> /entrypoint.sh && \
-    echo '# Remove file: prefix if present for file existence check' >> /entrypoint.sh && \
-    echo 'DB_FILE="${DB_PATH#file:}"' >> /entrypoint.sh && \
-    echo 'if [ ! -f "$DB_FILE" ]; then' >> /entrypoint.sh && \
-    echo '  echo "Database not found at $DB_FILE. Initializing database..."' >> /entrypoint.sh && \
-    echo '  npm run db:push || echo "Warning: Database initialization failed. Continuing anyway..."' >> /entrypoint.sh && \
-    echo 'else' >> /entrypoint.sh && \
-    echo '  echo "Database found at $DB_FILE"' >> /entrypoint.sh && \
-    echo 'fi' >> /entrypoint.sh && \
-    echo 'exec "$@"' >> /entrypoint.sh && \
+RUN { \
+    echo '#!/bin/sh'; \
+    echo 'set -e'; \
+    echo 'DB_PATH="${DB_FILE_NAME:-./src/db/local.db}"'; \
+    echo '# Remove file: prefix if present for file existence check'; \
+    echo 'DB_FILE="${DB_PATH#file:}"'; \
+    echo 'if [ ! -f "$DB_FILE" ]; then'; \
+    echo '  echo "Database not found at $DB_FILE. Initializing database..."'; \
+    echo '  npm run db:push || echo "Warning: Database initialization failed. Continuing anyway..."'; \
+    echo 'else'; \
+    echo '  echo "Database found at $DB_FILE"'; \
+    echo 'fi'; \
+    echo 'exec "$@"'; \
+} > /entrypoint.sh && \
     chmod +x /entrypoint.sh && \
     chown nextjs:nodejs /entrypoint.sh
 
