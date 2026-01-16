@@ -2,9 +2,9 @@
 
 FROM node:20-alpine AS base
 
-// ================================
-// DEPS
-// ================================
+# ================================
+# DEPS
+# ================================
 FROM base AS deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
@@ -17,9 +17,9 @@ RUN \
   else echo "Lockfile not found." && exit 1; \
   fi
 
-// ================================
-// BUILDER
-// ================================
+# ================================
+# BUILDER
+# ================================
 FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
@@ -32,9 +32,9 @@ RUN \
   else echo "Lockfile not found." && exit 1; \
   fi
 
-// ================================
-// RUNNER
-// ================================
+# ================================
+# RUNNER
+# ================================
 FROM base AS runner
 WORKDIR /app
 
