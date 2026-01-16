@@ -44,16 +44,21 @@ COPY --from=builder /app/.next/static ./.next/static
 
 # Copy package.json for npm scripts (needed for drizzle-kit)
 COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/package-lock.json* ./package-lock.json* 2>/dev/null || true
 
 # Install drizzle-kit and required dependencies for database migrations
-# Install into the app directory (which includes the standalone's node_modules)
+# CRITICAL: Install locally (not just globally) so drizzle-kit can load config files that need these modules
 # Note: @libsql/client is needed for the database connection, and dotenv for config
 # Install as root before switching users
-# Install both locally and globally as a fallback
-RUN npm install --omit=dev drizzle-kit tsx better-sqlite3 drizzle-orm @libsql/client dotenv --legacy-peer-deps && \
-    npm install -g drizzle-kit --legacy-peer-deps || true && \
-    echo "drizzle-kit check: $(which drizzle-kit || echo 'not in PATH')" && \
-    echo "local node_modules: $(find node_modules -name drizzle-kit -type f 2>/dev/null | head -1 || echo 'not found locally')"
+# Use --save to ensure it's installed in local node_modules (the standalone already has node_modules)
+# Use --no-save to avoid updating package.json, but ensure dependencies are installed
+RUN npm install drizzle-kit tsx better-sqlite3 drizzle-orm @libsql/client dotenv --legacy-peer-deps --no-save && \
+    echo "Verifying installation..." && \
+    echo "drizzle-kit in PATH: $(which drizzle-kit || echo 'not in PATH')" && \
+    echo "drizzle-kit in local node_modules/.bin: $([ -f node_modules/.bin/drizzle-kit ] && echo 'yes' || echo 'no')" && \
+    echo "drizzle-kit directory: $(find node_modules -name 'drizzle-kit' -type d 2>/dev/null | head -1 || echo 'not found')" && \
+    echo "drizzle-orm in node_modules: $(find node_modules -name 'drizzle-orm' -type d 2>/dev/null | head -1 || echo 'not found')" && \
+    ls -la node_modules/.bin/drizzle-kit 2>/dev/null || echo "drizzle-kit binary not found"
 
 # Copy database schema and config files needed for migrations
 COPY --from=builder /app/drizzle.config.ts ./drizzle.config.ts

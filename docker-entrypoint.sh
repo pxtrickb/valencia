@@ -124,15 +124,43 @@ export DB_FILE_NAME="$DB_ACTUAL_PATH"
 # Ensure PATH includes node_modules/.bin for npx to find drizzle-kit
 export PATH="/app/node_modules/.bin:$PATH"
 
-echo "Using DB_FILE_NAME: $DB_FILE_NAME for drizzle-kit push"
+# Ensure NODE_PATH includes node_modules so modules can be resolved
+export NODE_PATH="/app/node_modules:$NODE_PATH"
 
-# Try to run drizzle-kit push
-# First try npx, then fall back to direct command
-if npx --yes drizzle-kit push 2>&1; then
+echo "Using DB_FILE_NAME: $DB_FILE_NAME for drizzle-kit push"
+echo "NODE_PATH: $NODE_PATH"
+echo "Checking local drizzle-kit installation..."
+if [ -d "node_modules/drizzle-kit" ]; then
+  echo "✓ drizzle-kit found in local node_modules"
+else
+  echo "WARNING: drizzle-kit not in local node_modules"
+fi
+
+# Try to run drizzle-kit push using local installation first
+# Use npx with --yes to use local version and suppress prompts
+# The --prefer-offline flag helps if there are network issues
+if npx --yes --prefer-offline drizzle-kit push 2>&1; then
   echo "✓ Database schema migration completed successfully"
+elif [ -f "./node_modules/.bin/drizzle-kit" ]; then
+  # Try running the local binary directly
+  echo "npx failed, trying local binary directly..."
+  if ./node_modules/.bin/drizzle-kit push 2>&1; then
+    echo "✓ Database schema migration completed successfully"
+  elif [ -n "$DRIZZLE_KIT_CMD" ]; then
+    echo "Local binary failed, trying: $DRIZZLE_KIT_CMD"
+    if $DRIZZLE_KIT_CMD push 2>&1; then
+      echo "✓ Database schema migration completed successfully"
+    else
+      echo "ERROR: Database schema migration failed with exit code $?"
+      exit 1
+    fi
+  else
+    echo "ERROR: Cannot run drizzle-kit push"
+    exit 1
+  fi
 elif [ -n "$DRIZZLE_KIT_CMD" ]; then
-  echo "npx failed, trying direct command: $DRIZZLE_KIT_CMD"
-  if $DRIZZLE_KIT_CMD push; then
+  echo "Using drizzle-kit from: $DRIZZLE_KIT_CMD"
+  if $DRIZZLE_KIT_CMD push 2>&1; then
     echo "✓ Database schema migration completed successfully"
   else
     echo "ERROR: Database schema migration failed with exit code $?"
