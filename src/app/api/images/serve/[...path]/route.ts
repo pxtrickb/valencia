@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { readFile } from "fs/promises";
-import { join } from "path";
+import { join, resolve, relative } from "path";
 import { existsSync } from "fs";
 
 // Serve images from usercontent/images directory
@@ -13,14 +13,26 @@ export async function GET(
     const filename = path.join("/");
 
     // Security: prevent directory traversal
-    if (filename.includes("..") || filename.includes("/")) {
+    // Check for directory traversal attempts
+    if (filename.includes("..")) {
       return NextResponse.json(
         { error: "Invalid file path" },
         { status: 400 }
       );
     }
 
-    const filePath = join(process.cwd(), "usercontent", "images", filename);
+    // Resolve the base directory and the requested file path
+    const baseDir = resolve(process.cwd(), "usercontent", "images");
+    const filePath = resolve(baseDir, filename);
+
+    // Ensure the resolved path is within the base directory (prevent directory traversal)
+    const relativePath = relative(baseDir, filePath);
+    if (relativePath.startsWith("..") || relativePath.includes("..")) {
+      return NextResponse.json(
+        { error: "Invalid file path" },
+        { status: 400 }
+      );
+    }
 
     if (!existsSync(filePath)) {
       return NextResponse.json(
