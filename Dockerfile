@@ -54,7 +54,7 @@ COPY package.json ./
 
 # Install drizzle-kit for migrations (needed for db:push at runtime)
 # Using --no-save to avoid modifying package.json
-RUN npm install --no-save drizzle-kit && \
+RUN npm install --no-save drizzle-kit --legacy-peer-deps && \
     # Clean up build tools to reduce image size (keep libc6-compat for runtime)
     apk del python3 make g++
 
