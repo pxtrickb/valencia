@@ -1,13 +1,11 @@
 import { NextResponse } from "next/server";
-import { headers } from "next/headers";
-import { auth } from "@/lib/auth";
 import { requireAdmin } from "@/lib/admin";
 import { seed } from "@/db/seed";
 
 export async function POST() {
   try {
     // Check if user is admin
-    await requireAdmin({ headers: await headers() });
+    await requireAdmin();
 
     // Run seed
     await seed();
